@@ -63,4 +63,6 @@ mv /home/$ID/scylla-ami /usr/lib/scylla/scylla-ami
 /usr/lib/scylla/scylla_sysconfig_setup --ami
 /usr/lib/scylla/scylla_bootparam_setup --ami
 rm -fv /home/$ID/.ssh/authorized_keys
-rpm -ev kernel
+if [ "$ID" = "centos" ]; then
+    rpm -ev kernel
+fi
