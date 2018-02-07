@@ -53,6 +53,8 @@ else
     yum -y --enablerepo=elrepo-kernel install kernel-ml
     sed -i '/^GRUB\_CMDLINE\_LINUX/s/\"$/\ net\.ifnames\=0\"/' /etc/default/grub
     grub2-mkconfig -o /boot/grub2/grub.cfg
+    KVER=`rpm -ql kernel-ml|grep /boot/config|sed -e "s#/boot/config-##"`
+    grubby --grub2 --set-default /boot/vmlinuz-$KVER
 fi
 chmod a+rx /home/$ID/scylla_install_pkg
 /home/$ID/scylla_install_pkg $INSTALL_ARGS
