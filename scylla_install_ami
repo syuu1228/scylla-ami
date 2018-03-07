@@ -50,6 +50,7 @@ else
     mv /home/centos/scylla-ami/amzn-main.repo /etc/yum.repos.d
     yum -y install grubby
     yum -y update kernel
+    ln -s /dev/null /etc/udev/rules.d/80-net-name-slot.rules
 fi
 chmod a+rx /home/$ID/scylla_install_pkg
 /home/$ID/scylla_install_pkg $INSTALL_ARGS
