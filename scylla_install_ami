@@ -2,6 +2,8 @@
 #
 #  Copyright (C) 2015 ScyllaDB
 
+ENA_VER=1.5.3
+
 if [ "`id -u`" -ne 0 ]; then
     echo "Requires root permission."
     exit 1
@@ -48,9 +50,6 @@ else
     systemctl daemon-reload
     systemctl enable scylla-ami-setup.service
     mv /home/centos/scylla-ami/amzn-main.repo /etc/yum.repos.d
-    yum -y install grubby
-    yum -y update kernel
-    ln -s /dev/null /etc/udev/rules.d/80-net-name-slot.rules
 fi
 chmod a+rx /home/$ID/scylla_install_pkg
 /home/$ID/scylla_install_pkg $INSTALL_ARGS
@@ -61,3 +60,39 @@ mv /home/$ID/scylla-ami /usr/lib/scylla/scylla-ami
 /usr/lib/scylla/scylla_sysconfig_setup --ami
 /usr/lib/scylla/scylla_bootparam_setup --ami
 rm -fv /home/$ID/.ssh/authorized_keys
+
+if [ "$ID" = "ubuntu" ]; then
+    apt-get install -y dkms git
+else
+    yum -y remove kernel-tools-libs-$(uname -r)
+    yum -y update kernel kernel-tools
+    yum -y install dkms git grubby kernel-devel kernel-headers
+    rpm -e kernel-$(uname -r)
+    ln -s /dev/null /etc/udev/rules.d/80-net-name-slot.rules
+    AMZKVER=`ls /boot/vmlinuz-*amzn1.x86_64|sed -n "1s#/boot/vmlinuz-##p"`
+    grubby --grub2 --set-default /boot/vmlinuz-$AMZKVER
+    rm -f /lib/modules/$AMZKVER/build
+    ln -sf /usr/src/kernels/$AMZKVER /lib/modules/$AMZKVER/build
+fi
+
+git clone -b ena_linux_$ENA_VER https://github.com/amzn/amzn-drivers /usr/src/ena-$ENA_VER
+cat << EOS > /usr/src/ena-$ENA_VER/dkms.conf
+PACKAGE_NAME="ena"
+PACKAGE_VERSION="$ENA_VER"
+CLEAN="make -C kernel/linux/ena clean"
+MAKE="make -C kernel/linux/ena BUILD_KERNEL=\${kernelver}"
+BUILT_MODULE_LOCATION[0]="kernel/linux/ena"
+BUILT_MODULE_NAME[0]="ena"
+DEST_MODULE_LOCATION[0]="/updates"
+DEST_MODULE_NAME[0]="ena"
+AUTOINSTALL="yes"
+EOS
+dkms add -m ena -v $ENA_VER
+dkms build -m ena -v $ENA_VER -k $AMZKVER
+dkms install -m ena -v $ENA_VER -k $AMZKVER
+
+if [ "$ID" = "ubuntu" ]; then
+    update-initramfs -c -k all
+else
+    dracut --verbose --add-drivers "ixgbevf nvme ena" --force --kver $AMZKVER
+fi
