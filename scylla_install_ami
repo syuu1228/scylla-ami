@@ -68,6 +68,7 @@ else
     yum -y update kernel kernel-tools
     yum -y install dkms git grubby kernel-devel kernel-headers
     rpm -e kernel-$(uname -r)
+    yum update -y
     ln -s /dev/null /etc/udev/rules.d/80-net-name-slot.rules
     AMZKVER=`ls /boot/vmlinuz-*amzn1.x86_64|sed -n "1s#/boot/vmlinuz-##p"`
     grubby --grub2 --set-default /boot/vmlinuz-$AMZKVER
